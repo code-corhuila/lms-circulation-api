@@ -3,16 +3,17 @@ package usecase
 import (
 	"context"
 
+	out "github.com/code-corhuila/lms-circulation-api/internal/application/port/out"
 	"github.com/code-corhuila/lms-circulation-api/internal/domain/circulation"
 )
 
 // OverdueLoans implements HU-08's "Overdue Loans" report (Scenario 2): active
 // loans whose due date has already passed.
 type OverdueLoans struct {
-	Loans circulation.LoanRepository
+	Loans out.LoanRepository
 }
 
-func NewOverdueLoans(loans circulation.LoanRepository) *OverdueLoans {
+func NewOverdueLoans(loans out.LoanRepository) *OverdueLoans {
 	return &OverdueLoans{Loans: loans}
 }
 
