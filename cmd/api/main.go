@@ -11,16 +11,17 @@ import (
 	"syscall"
 	"time"
 
+	httpserver "github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi"
+	"github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi/handler"
+	catalogclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/catalogclient"
+	"github.com/code-corhuila/lms-circulation-api/internal/adapter/out/idempotency"
+	membershipclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/membershipclient"
+	"github.com/code-corhuila/lms-circulation-api/internal/adapter/out/persistence"
 	"github.com/code-corhuila/lms-circulation-api/internal/application/usecase"
 	"github.com/code-corhuila/lms-circulation-api/internal/config"
-	catalogclient "github.com/code-corhuila/lms-circulation-api/internal/infrastructure/catalog"
-	httpserver "github.com/code-corhuila/lms-circulation-api/internal/infrastructure/http"
-	"github.com/code-corhuila/lms-circulation-api/internal/infrastructure/http/handler"
 	"github.com/code-corhuila/lms-circulation-api/internal/infrastructure/logger"
-	membershipclient "github.com/code-corhuila/lms-circulation-api/internal/infrastructure/membership"
-	"github.com/code-corhuila/lms-circulation-api/internal/infrastructure/mongodb"
 
-	"github.com/code-corhuila/lms-circulation-api/internal/domain/service"
+	"github.com/code-corhuila/lms-circulation-api/internal/application/service"
 )
 
 func main() {
@@ -46,7 +47,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	mongoClient, err := mongodb.NewClient(ctx, cfg.MongoURI())
+	mongoClient, err := persistence.NewClient(ctx, cfg.MongoURI())
 	if err != nil {
 		log.Errorw("failed to connect to database", "error", err)
 		return err
@@ -54,17 +55,18 @@ func run() error {
 	defer func() { _ = mongoClient.Disconnect(ctx) }()
 
 	db := mongoClient.Database(cfg.DBName)
-	if err := mongodb.EnsureIndexes(ctx, db); err != nil {
+	if err := persistence.EnsureIndexes(ctx, db); err != nil {
 		log.Errorw("failed to ensure indexes", "error", err)
 		return err
 	}
 
-	loanRepo := mongodb.NewLoanRepository(db)
+	loanRepo := persistence.NewLoanRepository(db)
 	studentClient := membershipclient.NewClient(cfg.MembershipServiceURL, cfg.JWTSecret)
 	bookClient := catalogclient.NewClient(cfg.CatalogServiceURL, cfg.JWTSecret)
+	idempotencyStore := idempotency.NewMemoryStore()
 
 	loanRegistrationService := service.NewLoanRegistrationService(studentClient, bookClient, loanRepo)
-	registerLoanUseCase := usecase.NewRegisterLoan(loanRegistrationService)
+	registerLoanUseCase := usecase.NewRegisterLoan(loanRegistrationService, loanRepo, idempotencyStore)
 	returnLoanUseCase := usecase.NewReturnLoan(loanRegistrationService)
 	searchLoansUseCase := usecase.NewSearchLoans(loanRepo)
 	overdueLoansUseCase := usecase.NewOverdueLoans(loanRepo)
