@@ -1,4 +1,4 @@
-package mongodb
+package persistence
 
 import (
 	"context"
@@ -14,9 +14,16 @@ import (
 
 const loansCollection = "loans"
 
-// LoanRepository implements circulation.LoanRepository against MongoDB — the
+// LoanRepository implements out.LoanRepository against MongoDB — the
 // only code allowed to touch the `loans` collection
 // (library-docs/09-microservices/service-boundary-rules.md).
+//
+// EnsureIndexes below still creates this collection's indexes from inside
+// this -api repo, which rules/2-anexos/B-db-mongo.md says should live in
+// lms-circulation-db instead ("Qué va en cada parte" — schema ownership never
+// belongs to the -api). Not fixed in this change: ADR-010-liquibase-for-database-migrations.md
+// tracks the -db restructuring this migration depends on; moving index
+// creation out of here is a follow-up once that lands, not before.
 type LoanRepository struct {
 	collection *mongo.Collection
 }
