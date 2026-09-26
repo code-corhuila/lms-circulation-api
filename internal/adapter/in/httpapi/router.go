@@ -7,8 +7,8 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/code-corhuila/lms-circulation-api/internal/infrastructure/http/handler"
-	"github.com/code-corhuila/lms-circulation-api/internal/infrastructure/http/middleware"
+	"github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi/handler"
+	"github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi/middleware"
 )
 
 // RouterConfig carries what the router needs to wire itself.
