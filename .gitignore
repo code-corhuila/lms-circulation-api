@@ -1,0 +1,19 @@
+# Binaries
+/bin/
+*.exe
+*.test
+*.out
+
+# Go build/test artifacts
+coverage.out
+
+# Dependency vendoring (not used — go.sum pins versions)
+/vendor/
+
+# Environment
+.env
+*.pem
+
+# IDE
+.idea/
+.vscode/
