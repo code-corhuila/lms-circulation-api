@@ -1,8 +1,9 @@
-// Package membership implements the service.StudentClient driven port over
+// Package membershipclient implements application/port/out.StudentClient over
 // HTTP — LoanRegistrationService can no longer call membership's
 // StudentRepository directly now that Student lives in a different database
-// (library-docs/09-microservices/service-boundary-rules.md).
-package membership
+// (library-docs/09-microservices/service-boundary-rules.md). Relocated from
+// internal/infrastructure/membership to adapter/out (rules/2-anexos/C-api-hexagonal.md).
+package membershipclient
 
 import (
 	"bytes"
