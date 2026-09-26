@@ -3,8 +3,8 @@ package usecase
 import (
 	"context"
 
+	"github.com/code-corhuila/lms-circulation-api/internal/application/service"
 	"github.com/code-corhuila/lms-circulation-api/internal/domain/circulation"
-	"github.com/code-corhuila/lms-circulation-api/internal/domain/service"
 )
 
 // ReturnLoan implements HU-07's acceptance criteria — a thin wrapper around
