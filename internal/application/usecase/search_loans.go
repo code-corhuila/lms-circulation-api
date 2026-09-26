@@ -3,16 +3,17 @@ package usecase
 import (
 	"context"
 
+	out "github.com/code-corhuila/lms-circulation-api/internal/application/port/out"
 	"github.com/code-corhuila/lms-circulation-api/internal/domain/circulation"
 )
 
 // SearchLoans implements the history/query half of HU-07 (and is reused by
 // HU-08 with overdueOnly=true).
 type SearchLoans struct {
-	Loans circulation.LoanRepository
+	Loans out.LoanRepository
 }
 
-func NewSearchLoans(loans circulation.LoanRepository) *SearchLoans {
+func NewSearchLoans(loans out.LoanRepository) *SearchLoans {
 	return &SearchLoans{Loans: loans}
 }
 
