@@ -1,8 +1,9 @@
-// Package catalog implements the service.BookClient driven port over HTTP —
+// Package catalogclient implements application/port/out.BookClient over HTTP —
 // LoanRegistrationService can no longer call catalog's BookRepository
 // directly now that Book lives in a different database
-// (library-docs/09-microservices/service-boundary-rules.md).
-package catalog
+// (library-docs/09-microservices/service-boundary-rules.md). Relocated from
+// internal/infrastructure/catalog to adapter/out (rules/2-anexos/C-api-hexagonal.md).
+package catalogclient
 
 import (
 	"context"
