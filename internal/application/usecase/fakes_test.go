@@ -84,3 +84,21 @@ func (f *fakeLoanRepo) Save(_ context.Context, l *circulation.Loan) error {
 	f.byID[l.ID] = l
 	return nil
 }
+
+type fakeIdempotencyStore struct {
+	byKey map[string]string
+}
+
+func newFakeIdempotencyStore() *fakeIdempotencyStore {
+	return &fakeIdempotencyStore{byKey: map[string]string{}}
+}
+
+func (f *fakeIdempotencyStore) Get(_ context.Context, key string) (string, bool, error) {
+	id, ok := f.byKey[key]
+	return id, ok, nil
+}
+
+func (f *fakeIdempotencyStore) Save(_ context.Context, key, loanID string) error {
+	f.byKey[key] = loanID
+	return nil
+}
