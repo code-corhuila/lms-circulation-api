@@ -18,9 +18,9 @@ students/books, so it gains nothing from a relational engine. It validates the J
 `LoanRegistrationService` coordinates Student (Membership), Book (Catalog), and Loan
 (Circulation) over HTTP:
 
-- `internal/infrastructure/membership/client.go` → calls `lms-membership-api`
+- `internal/adapter/out/membershipclient/client.go` → calls `lms-membership-api`
   (`GET /students/{id}` for eligibility, `POST /students/{id}/suspend` for late returns)
-- `internal/infrastructure/catalog/client.go` → calls `lms-catalog-api`
+- `internal/adapter/out/catalogclient/client.go` → calls `lms-catalog-api`
   (`POST /books/{id}/loan-copy` / `/return-copy`)
 
 Both clients authenticate with a short-lived internal token signed with the shared
@@ -31,28 +31,51 @@ This service combines Create (HU-06, "registrar préstamos"), Return + history/s
 and the Overdue report with the late-return suspension trigger (HU-08). `SuspensionDays` is 3
 (lowered from 7 per product decision).
 
+Structure and contract follow `rules/2-anexos/C-api-hexagonal.md` (the course's own repository
+norm) — see `ADR-010-liquibase-for-database-migrations.md` for the related `-db` decision.
+
 ## Structure
 
 ```
-cmd/api/                 → entry point (main.go)
+cmd/api/                       → entry point (main.go), the composition root
 internal/
-├── domain/
-│   ├── circulation/       → Loan aggregate, LoanRepository port
-│   └── service/            → LoanRegistrationService (cross-service coordination)
-├── application/usecase/  → RegisterLoan (HU-06), ReturnLoan, SearchLoans (HU-07),
-│                            OverdueLoans (HU-08)
-├── config/                → environment variable loading
-└── infrastructure/
-    ├── http/               → chi router, middleware, handlers (primary adapters)
-    ├── mongodb/             → LoanRepository (secondary adapter), index creation
-    ├── membership/           → HTTP client for the Membership driven port
-    ├── catalog/               → HTTP client for the Catalog driven port
-    └── logger/                 → structured (zap) logger
+├── domain/circulation/          → Loan aggregate — no port, no framework import
+├── application/
+│   ├── service/                  → LoanRegistrationService (cross-service coordination) —
+│   │                                 relocated from domain/service: it depends on ports, so
+│   │                                 it's an application-layer concern, not domain
+│   ├── port/
+│   │   ├── in/                    → inbound ports the HTTP adapter depends on (loan_usecases.go)
+│   │   └── out/                   → outbound ports (LoanRepository, StudentClient, BookClient,
+│   │                                 IdempotencyStore) — ports.go
+│   └── usecase/                   → RegisterLoan (HU-06), ReturnLoan, SearchLoans (HU-07),
+│                                     OverdueLoans (HU-08)
+├── config/                      → environment variable loading
+├── adapter/
+│   ├── in/httpapi/                → chi router, middleware, handlers, response envelope
+│   └── out/
+│       ├── persistence/             → LoanRepository against MongoDB, index creation
+│       ├── membershipclient/          → HTTP client for the Membership driven port
+│       ├── catalogclient/              → HTTP client for the Catalog driven port
+│       └── idempotency/                 → provisional in-memory IdempotencyStore (see below)
+└── infrastructure/logger/        → structured (zap) logger — not a port implementation
 ```
 
-No `migrations/` — MongoDB doesn't need `golang-migrate`; `internal/infrastructure/mongodb.EnsureIndexes`
+No `migrations/` — MongoDB doesn't need `golang-migrate`; `internal/adapter/out/persistence.EnsureIndexes`
 creates the indexes this service relies on at startup, called once from `cmd/api/main.go`
 (`ADR-005`'s "lighter-weight" schema evolution note).
+
+## Known gaps against `rules/2-anexos/C-api-hexagonal.md` / Anexo B
+
+- **Index creation still lives in this `-api` repo, not `lms-circulation-db`.**
+  `rules/2-anexos/B-db-mongo.md` is explicit that schema/index ownership belongs to the `-db`
+  repo. `EnsureIndexes` here is unchanged in this fix — moving it out is a follow-up once
+  `lms-circulation-db` has real migrations (`ADR-010-liquibase-for-database-migrations.md`).
+- **Idempotent creation is provisional.** `POST /loans` honors `Idempotency-Key`, but
+  `internal/adapter/out/idempotency` is an in-memory map — same caveat as the other two
+  services' PRs.
+- **Auth stays HS256/shared-secret, not RS256/public-key.** Same reasoning as the other two
+  services: needs a coordinated change with `lms-access-api`.
 
 ## Tech Stack
 
@@ -77,6 +100,12 @@ go run ./cmd/api/...
 
 Needs `membership-service` and `catalog-service` reachable at
 `MEMBERSHIP_SERVICE_URL` / `CATALOG_SERVICE_URL` to register a loan or a return.
+
+Standalone, against an already-running `lms-circulation-db`:
+
+```bash
+docker compose -f deploy/compose.yml up --build
+```
 
 Or, with the rest of the stack, from the repo root:
 
