@@ -1,7 +1,12 @@
-// Package service holds Domain Services — business logic that coordinates more
-// than one bounded context and therefore does not naturally belong inside a
-// single Aggregate Root. See library-docs/02-domain/entities-and-rules.md,
-// "Domain Services".
+// Package service holds an application service — business logic that
+// coordinates more than one bounded context and therefore does not naturally
+// belong inside a single Aggregate Root (library-docs/02-domain/entities-and-rules.md,
+// "Domain Services"). Relocated from internal/domain/service to
+// internal/application/service: it depends on application/port/out
+// (StudentClient, BookClient, LoanRepository), and rules/2-anexos/C-api-hexagonal.md's
+// dependency rule doesn't allow the domain layer to depend on anything —
+// coordinating through ports is an application-layer concern even though the
+// business rules it enforces are domain rules.
 //
 // Before the microservices split, StudentClient/BookClient were in-process
 // repository calls against the same database. Now they're HTTP calls to
@@ -15,6 +20,7 @@ import (
 	"errors"
 	"time"
 
+	out "github.com/code-corhuila/lms-circulation-api/internal/application/port/out"
 	"github.com/code-corhuila/lms-circulation-api/internal/domain/circulation"
 )
 
@@ -25,28 +31,18 @@ var ErrStudentSuspended = errors.New("student is suspended")
 // ErrLoanLimitReached — INV-004 on Loan: max 2 simultaneous active loans per student.
 var ErrLoanLimitReached = errors.New("loan limit reached")
 
-// StudentClient is the driven port onto membership-service.
-type StudentClient interface {
-	IsEligible(ctx context.Context, studentID string) (bool, error)
-	Suspend(ctx context.Context, studentID string, days int) error
-}
-
-// BookClient is the driven port onto catalog-service.
-type BookClient interface {
-	LoanCopy(ctx context.Context, bookID string) error
-	ReturnCopy(ctx context.Context, bookID string) error
-}
-
 // LoanRegistrationService coordinates Student (Membership), Book (Catalog),
 // and Loan (Circulation) — this is the one place in the codebase where those
-// three are checked/changed together.
+// three are checked/changed together. StudentClient/BookClient/LoanRepository
+// now live in application/port/out (rules/2-anexos/C-api-hexagonal.md), not
+// declared inline in this package.
 type LoanRegistrationService struct {
-	students StudentClient
-	books    BookClient
-	loans    circulation.LoanRepository
+	students out.StudentClient
+	books    out.BookClient
+	loans    out.LoanRepository
 }
 
-func NewLoanRegistrationService(students StudentClient, books BookClient, loans circulation.LoanRepository) *LoanRegistrationService {
+func NewLoanRegistrationService(students out.StudentClient, books out.BookClient, loans out.LoanRepository) *LoanRegistrationService {
 	return &LoanRegistrationService{students: students, books: books, loans: loans}
 }
 
