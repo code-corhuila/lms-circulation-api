@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/code-corhuila/lms-circulation-api/internal/application/service"
 	"github.com/code-corhuila/lms-circulation-api/internal/application/usecase"
 	"github.com/code-corhuila/lms-circulation-api/internal/domain/circulation"
-	"github.com/code-corhuila/lms-circulation-api/internal/domain/service"
 )
 
 func setupLoanFixture(t *testing.T) (*service.LoanRegistrationService, *circulation.Loan, *fakeStudentClient, *fakeBookClient, *fakeLoanRepo) {
