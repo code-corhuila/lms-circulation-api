@@ -113,18 +113,22 @@ func (h *LoanHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// STUDENT_SUSPENDED, LOAN_LIMIT_REACHED, and NO_COPIES_AVAILABLE are all
+	// 422, not 409: the request is well-formed and collides with no existing
+	// resource — a domain rule (INV-002/INV-003/INV-004) forbids it outright
+	// (rules/2-anexos/C-api-hexagonal.md, numeral 5.3.11 / D-G08).
 	loan, replayed, err := h.registerLoan.Execute(r.Context(), req.StudentID, req.BookID, idempotencyKey)
 	switch {
 	case errors.Is(err, service.ErrStudentSuspended):
-		response.Error(w, http.StatusConflict, "STUDENT_SUSPENDED",
+		response.Error(w, http.StatusUnprocessableEntity, "STUDENT_SUSPENDED",
 			"This student cannot receive a new loan until their suspension ends", traceID)
 		return
 	case errors.Is(err, service.ErrLoanLimitReached):
-		response.Error(w, http.StatusConflict, "LOAN_LIMIT_REACHED",
+		response.Error(w, http.StatusUnprocessableEntity, "LOAN_LIMIT_REACHED",
 			"This student already has the maximum of 2 active loans", traceID)
 		return
 	case errors.Is(err, catalogclient.ErrNoCopiesAvailable):
-		response.Error(w, http.StatusConflict, "NO_COPIES_AVAILABLE",
+		response.Error(w, http.StatusUnprocessableEntity, "NO_COPIES_AVAILABLE",
 			"There are no available copies of this book", traceID)
 		return
 	case errors.Is(err, membershipclient.ErrStudentNotFound):
