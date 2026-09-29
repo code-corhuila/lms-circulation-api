@@ -18,31 +18,17 @@ const loansCollection = "loans"
 // only code allowed to touch the `loans` collection
 // (library-docs/09-microservices/service-boundary-rules.md).
 //
-// EnsureIndexes below still creates this collection's indexes from inside
-// this -api repo, which rules/2-anexos/B-db-mongo.md says should live in
-// lms-circulation-db instead ("Qué va en cada parte" — schema ownership never
-// belongs to the -api). Not fixed in this change: ADR-010-liquibase-for-database-migrations.md
-// tracks the -db restructuring this migration depends on; moving index
-// creation out of here is a follow-up once that lands, not before.
+// This service no longer creates the collection's indexes itself —
+// lms-circulation-db's Liquibase migrations own them now
+// (rules/2-anexos/B-db-mongo.md; the old EnsureIndexes() here was flagged
+// critical on lms-circulation-api#2's review, since schema ownership never
+// belongs to the -api). This repository assumes they already exist.
 type LoanRepository struct {
 	collection *mongo.Collection
 }
 
 func NewLoanRepository(db *mongo.Database) *LoanRepository {
 	return &LoanRepository{collection: db.Collection(loansCollection)}
-}
-
-// EnsureIndexes creates the indexes this repository relies on — MongoDB has no
-// migration tool equivalent to golang-migrate, so schema evolution here is just
-// "call this again with the new index definitions" (ADR-005's lighter-weight note).
-// Called once at startup (see cmd/api/main.go), not per-request.
-func EnsureIndexes(ctx context.Context, db *mongo.Database) error {
-	_, err := db.Collection(loansCollection).Indexes().CreateMany(ctx, []mongo.IndexModel{
-		{Keys: bson.D{{Key: "student_id", Value: 1}}},
-		{Keys: bson.D{{Key: "book_id", Value: 1}}},
-		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "due_date", Value: 1}}},
-	})
-	return err
 }
 
 // loanDocument is the on-disk shape — kept separate from circulation.Loan so the
