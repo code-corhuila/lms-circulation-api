@@ -14,7 +14,6 @@ import (
 	httpserver "github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi"
 	"github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi/handler"
 	catalogclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/catalogclient"
-	"github.com/code-corhuila/lms-circulation-api/internal/adapter/out/idempotency"
 	membershipclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/membershipclient"
 	"github.com/code-corhuila/lms-circulation-api/internal/adapter/out/persistence"
 	"github.com/code-corhuila/lms-circulation-api/internal/application/usecase"
@@ -54,16 +53,16 @@ func run() error {
 	}
 	defer func() { _ = mongoClient.Disconnect(ctx) }()
 
+	// Indexes are no longer created here — lms-circulation-db's own Liquibase
+	// migrations own them now (rules/2-anexos/B-db-mongo.md; the -api creating
+	// schema was flagged critical on lms-circulation-api#2's review). This
+	// service just assumes they already exist by the time it starts.
 	db := mongoClient.Database(cfg.DBName)
-	if err := persistence.EnsureIndexes(ctx, db); err != nil {
-		log.Errorw("failed to ensure indexes", "error", err)
-		return err
-	}
 
 	loanRepo := persistence.NewLoanRepository(db)
-	studentClient := membershipclient.NewClient(cfg.MembershipServiceURL, cfg.JWTSecret)
-	bookClient := catalogclient.NewClient(cfg.CatalogServiceURL, cfg.JWTSecret)
-	idempotencyStore := idempotency.NewMemoryStore()
+	studentClient := membershipclient.NewClient(cfg.MembershipServiceURL, cfg.InternalJWTSecret)
+	bookClient := catalogclient.NewClient(cfg.CatalogServiceURL, cfg.InternalJWTSecret)
+	idempotencyStore := persistence.NewIdempotencyStore(db)
 
 	loanRegistrationService := service.NewLoanRegistrationService(studentClient, bookClient, loanRepo)
 	registerLoanUseCase := usecase.NewRegisterLoan(loanRegistrationService, loanRepo, idempotencyStore)
@@ -73,10 +72,11 @@ func run() error {
 	loanHandler := handler.NewLoanHandler(registerLoanUseCase, returnLoanUseCase, searchLoansUseCase, overdueLoansUseCase)
 
 	router := httpserver.NewRouter(httpserver.RouterConfig{
-		DB:         mongoClient,
-		JWTSecret:  cfg.JWTSecret,
-		CORSOrigin: cfg.CORSOrigin,
-		Loans:      loanHandler,
+		DB:                mongoClient,
+		JWTPublicKey:      cfg.JWTPublicKey,
+		InternalJWTSecret: cfg.InternalJWTSecret,
+		CORSOrigin:        cfg.CORSOrigin,
+		Loans:             loanHandler,
 	})
 
 	srv := &http.Server{
