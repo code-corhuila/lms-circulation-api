@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"crypto/rsa"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -13,10 +14,11 @@ import (
 
 // RouterConfig carries what the router needs to wire itself.
 type RouterConfig struct {
-	DB         *mongo.Client
-	JWTSecret  string
-	CORSOrigin string
-	Loans      *handler.LoanHandler
+	DB                *mongo.Client
+	JWTPublicKey      *rsa.PublicKey
+	InternalJWTSecret string
+	CORSOrigin        string
+	Loans             *handler.LoanHandler
 }
 
 // NewRouter builds the chi router with the base middleware stack, health
@@ -34,7 +36,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Group(func(protected chi.Router) {
-			protected.Use(middleware.RequireAuth(cfg.JWTSecret))
+			protected.Use(middleware.RequireAuth(cfg.JWTPublicKey, cfg.InternalJWTSecret))
 
 			protected.Route("/loans", func(loans chi.Router) {
 				loans.Post("/", cfg.Loans.Create)            // HU-06

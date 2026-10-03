@@ -118,9 +118,11 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body *byte
 	return req, nil
 }
 
-// mintServiceToken signs a short-lived internal token with the JWT_SECRET
-// shared by every service (see access-service's JWTIssuer) — v1 has no
-// separate service-to-service auth scope, an accepted trade-off at this size.
+// mintServiceToken signs a short-lived internal token with INTERNAL_JWT_SECRET
+// — deliberately not the RS256 key access-service's JWTIssuer uses for real
+// Administrator sessions (rules/2-anexos/C-api-hexagonal.md, numeral 5.3.7).
+// v1 still has no separate per-service scope beyond that, an accepted
+// trade-off at this size.
 func (c *Client) mintServiceToken() (string, error) {
 	now := time.Now().UTC()
 	claims := jwt.MapClaims{

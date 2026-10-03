@@ -54,35 +54,37 @@ internal/
 ├── adapter/
 │   ├── in/httpapi/                → chi router, middleware, handlers, response envelope
 │   └── out/
-│       ├── persistence/             → LoanRepository against MongoDB, index creation
+│       ├── persistence/             → LoanRepository and IdempotencyStore, both against MongoDB
 │       ├── membershipclient/          → HTTP client for the Membership driven port
-│       ├── catalogclient/              → HTTP client for the Catalog driven port
-│       └── idempotency/                 → provisional in-memory IdempotencyStore (see below)
+│       └── catalogclient/              → HTTP client for the Catalog driven port
 └── infrastructure/logger/        → structured (zap) logger — not a port implementation
 ```
 
-No `migrations/` — MongoDB doesn't need `golang-migrate`; `internal/adapter/out/persistence.EnsureIndexes`
-creates the indexes this service relies on at startup, called once from `cmd/api/main.go`
-(`ADR-005`'s "lighter-weight" schema evolution note).
+No `migrations/` — schema (the `loans` collection, its validator, its indexes) is owned by
+`lms-circulation-db`'s own Liquibase migrations now, not this repo. This service no longer calls
+`EnsureIndexes()` at startup; it assumes the collection and indexes already exist.
 
 ## Known gaps against `rules/2-anexos/C-api-hexagonal.md` / Anexo B
 
-- **Index creation still lives in this `-api` repo, not `lms-circulation-db`.**
-  `rules/2-anexos/B-db-mongo.md` is explicit that schema/index ownership belongs to the `-db`
-  repo. `EnsureIndexes` here is unchanged in this fix — moving it out is a follow-up once
-  `lms-circulation-db` has real migrations (`ADR-010-liquibase-for-database-migrations.md`).
-- **Idempotent creation is provisional.** `POST /loans` honors `Idempotency-Key`, but
-  `internal/adapter/out/idempotency` is an in-memory map — same caveat as the other two
-  services' PRs.
-- **Auth stays HS256/shared-secret, not RS256/public-key.** Same reasoning as the other two
-  services: needs a coordinated change with `lms-access-api`.
+Both of this repo's previously-declared gaps are closed: idempotent creation is durable
+(`internal/adapter/out/persistence.IdempotencyStore`, backed by `lms-circulation-db`'s
+`idempotency_keys` collection), and auth is RS256/HS256 — see "Authentication" below.
 
 ## Tech Stack
 
 * **Language:** Go 1.25
 * **Router:** chi
-* **Database driver:** `go.mongodb.org/mongo-driver` (MongoDB, schema owned by this repo's own
-  `EnsureIndexes`, not `lms-circulation-db`'s migrations — Mongo has none)
+* **Database driver:** `go.mongodb.org/mongo-driver` (MongoDB, schema now owned by
+  `lms-circulation-db`'s Liquibase migrations)
+
+## Authentication
+
+Two algorithms, each with its own key (`rules/2-anexos/C-api-hexagonal.md`, numeral 5.3.7):
+**RS256**, verified with `lms-access-api`'s public key, for a real Administrator session; **HS256**,
+verified with a separate `INTERNAL_JWT_SECRET`, for the tokens this service mints to call
+`lms-membership-api`/`lms-catalog-api` and for the ones it accepts from other services. Never the
+same key for both — see `internal/adapter/in/httpapi/middleware/auth.go`'s doc comment for why
+that specific separation is what prevents the RS256-to-HS256 key-confusion attack.
 
 **`go.sum` is intentionally incomplete.** `mongo-driver` is a new dependency this project didn't
 have before — its hashes (and its own transitive deps: bson, `xdg-go/scram`,
