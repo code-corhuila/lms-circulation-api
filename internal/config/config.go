@@ -89,9 +89,14 @@ func Load() (*Config, error) {
 
 // MongoURI builds the MongoDB connection string.
 func (c *Config) MongoURI() string {
+	// authSource=DBName, not admin: rules/3-Anexo-J moved circulation_app's
+	// home database to loan_db itself (lms-infra-mongo's init script) —
+	// the single shared Mongo instance's admin database is reserved for
+	// the instance administrator, same split as every domain's Postgres
+	// <domain>_app user never being the instance superuser.
 	return fmt.Sprintf(
-		"mongodb://%s:%s@%s:%s/%s?authSource=admin",
-		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName,
+		"mongodb://%s:%s@%s:%s/%s?authSource=%s",
+		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName, c.DBName,
 	)
 }
 
