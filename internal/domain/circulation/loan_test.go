@@ -7,8 +7,8 @@ import (
 	"github.com/code-corhuila/lms-circulation-api/internal/domain/circulation"
 )
 
-func TestNewLoan_SetsDueDateSevenDaysAfterLoanDate(t *testing.T) {
-	// INV-001 on Loan: dueDate = loanDate + 7 days, no renewals in v1.
+func TestNewLoan_SetsDueDateLoanPeriodDaysAfterLoanDate(t *testing.T) {
+	// INV-001 on Loan: dueDate = loanDate + LoanPeriodDays, no renewals in v1.
 	loan := circulation.NewLoan("student-1", "book-1")
 
 	expected := loan.LoanDate.AddDate(0, 0, circulation.LoanPeriodDays)

@@ -13,8 +13,12 @@ import (
 // library-docs/01-context/scope.md, Scope assumption #2, and
 // library-docs/02-domain/entities-and-rules.md INV-001/INV-006 on Loan.
 // SuspensionDays was lowered from 7 to 3 per product decision.
+//
+// LoanPeriodDays changed from 7 to 3 locally for testing — library-docs
+// still documents 7, so this diverges from the governance-tracked value
+// until (if ever) that gets updated too.
 const (
-	LoanPeriodDays = 7
+	LoanPeriodDays = 3
 	SuspensionDays = 3
 	MaxActiveLoans = 2
 )
