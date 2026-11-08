@@ -136,6 +136,19 @@ unchanged.
 
 The full map lives in `library-docs`.
 
+## Authorization (ADR-012)
+
+Every protected `/loans` route now declares the permission it needs (`loans:read` or
+`loans:write`) and checks it against `lms-iam`'s `GET /api/v1/iam/authorize`
+(`internal/adapter/out/iamclient`, `internal/adapter/in/httpapi/middleware/authz.go`) — closes
+T2/SEC-04 from the week-13 security threat model. `GET /loans/overdue`, also polled by
+`lms-workflow`'s scheduler, is included: an internal caller with no explicit role assignment in
+`lms-iam` defaults to allowed (`ADR-012`), so this does not block that polling.
+
+**Opt-in, additive rollout:** `IAM_SERVICE_URL` unset disables the check entirely
+(`RouterConfig.Authorizer` stays `nil`). **Fails closed:** an unreachable `lms-iam` rejects the
+request (`500`), never silently allows it through.
+
 ---
 
 ## Branching
