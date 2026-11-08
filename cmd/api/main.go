@@ -13,7 +13,9 @@ import (
 
 	httpserver "github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi"
 	"github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi/handler"
+	"github.com/code-corhuila/lms-circulation-api/internal/adapter/in/httpapi/middleware"
 	catalogclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/catalogclient"
+	iamclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/iamclient"
 	membershipclient "github.com/code-corhuila/lms-circulation-api/internal/adapter/out/membershipclient"
 	"github.com/code-corhuila/lms-circulation-api/internal/adapter/out/persistence"
 	"github.com/code-corhuila/lms-circulation-api/internal/application/usecase"
@@ -71,12 +73,20 @@ func run() error {
 	overdueLoansUseCase := usecase.NewOverdueLoans(loanRepo)
 	loanHandler := handler.NewLoanHandler(registerLoanUseCase, returnLoanUseCase, searchLoansUseCase, overdueLoansUseCase)
 
+	// Authorizer stays nil (disabling the permission check, router.go) when
+	// IAM_SERVICE_URL isn't set — ADR-012's additive, opt-in rollout.
+	var authorizer middleware.Authorizer
+	if cfg.IAMServiceURL != "" {
+		authorizer = iamclient.NewClient(cfg.IAMServiceURL, cfg.InternalJWTSecret)
+	}
+
 	router := httpserver.NewRouter(httpserver.RouterConfig{
 		DB:                mongoClient,
 		JWTPublicKey:      cfg.JWTPublicKey,
 		InternalJWTSecret: cfg.InternalJWTSecret,
 		CORSOrigin:        cfg.CORSOrigin,
 		Loans:             loanHandler,
+		Authorizer:        authorizer,
 	})
 
 	srv := &http.Server{
