@@ -86,6 +86,11 @@ verified with a separate `INTERNAL_JWT_SECRET`, for the tokens this service mint
 same key for both — see `internal/adapter/in/httpapi/middleware/auth.go`'s doc comment for why
 that specific separation is what prevents the RS256-to-HS256 key-confusion attack.
 
+**No `RequireCaller` allow-list here (ADR-013).** `GET /loans/overdue` and `POST /loans/{id}/return`
+are shared with real HU-07/HU-08 UI traffic (also polled internally by `lms-workflow`), so neither
+gets a caller restriction — doing so would 403 real Administrator usage. `lms-membership-api` and
+`lms-catalog-api` do get one, on their internal-only routes.
+
 **`go.sum` is intentionally incomplete.** `mongo-driver` is a new dependency this project didn't
 have before — its hashes (and its own transitive deps: bson, `xdg-go/scram`,
 `xdg-go/stringprep`, `youmark/pkcs8`, `klauspost/compress`, ...) can't be generated without
