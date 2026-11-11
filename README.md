@@ -72,7 +72,7 @@ Both of this repo's previously-declared gaps are closed: idempotent creation is 
 
 ## Tech Stack
 
-* **Language:** Go 1.25
+* **Language:** Go 1.26
 * **Router:** chi
 * **Database driver:** `go.mongodb.org/mongo-driver` (MongoDB, schema now owned by
   `lms-circulation-db`'s Liquibase migrations)

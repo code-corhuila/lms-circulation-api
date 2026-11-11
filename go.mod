@@ -1,6 +1,8 @@
 module github.com/code-corhuila/lms-circulation-api
 
-go 1.25.1
+go 1.26.1
+
+toolchain go1.26.10
 
 require (
 	github.com/go-chi/chi/v5 v5.3.2
