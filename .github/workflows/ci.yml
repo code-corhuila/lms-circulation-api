@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.26.10"
       - name: gofmt
         run: |
           fmt_out="$(gofmt -l .)"
@@ -40,7 +40,7 @@ jobs:
       # Dependencies: fail on known vulnerabilities that are reachable from our code.
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.26.10"
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: govulncheck ./...
       # Authorization tests on their own, so a PR can never silently skip them.
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.26.10"
       # README's own "go.sum is intentionally incomplete" note: this runner
       # has network access (my sandbox doesn't), so this actually resolves
       # the missing mongo-driver hashes for this job — it does not fix the
