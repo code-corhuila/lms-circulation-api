@@ -19,6 +19,10 @@ type RouterConfig struct {
 	InternalJWTSecret string
 	CORSOrigin        string
 	Loans             *handler.LoanHandler
+	// Authorizer calls lms-iam's /authorize (ADR-012). nil disables the
+	// check entirely (local dev without lms-iam running), never silently
+	// passing a request through where a check was expected.
+	Authorizer middleware.Authorizer
 }
 
 // NewRouter builds the chi router with the base middleware stack, health
@@ -34,15 +38,24 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	r.Get("/health", health.Liveness)
 	r.Get("/health/ready", health.Readiness)
 
+	// requirePermission is a no-op when Authorizer is nil (lms-iam not
+	// configured for this run) rather than a silent allow-everything.
+	requirePermission := func(permission string) func(http.Handler) http.Handler {
+		if cfg.Authorizer == nil {
+			return func(next http.Handler) http.Handler { return next }
+		}
+		return middleware.RequirePermission(cfg.Authorizer, permission)
+	}
+
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Group(func(protected chi.Router) {
 			protected.Use(middleware.RequireAuth(cfg.JWTPublicKey, cfg.InternalJWTSecret))
 
 			protected.Route("/loans", func(loans chi.Router) {
-				loans.Post("/", cfg.Loans.Create)            // HU-06
-				loans.Get("/", cfg.Loans.List)               // HU-07
-				loans.Get("/overdue", cfg.Loans.Overdue)     // HU-08
-				loans.Post("/{id}/return", cfg.Loans.Return) // HU-07 / HU-08 suspension trigger
+				loans.With(requirePermission("loans:write")).Post("/", cfg.Loans.Create)           // HU-06
+				loans.With(requirePermission("loans:read")).Get("/", cfg.Loans.List)               // HU-07
+				loans.With(requirePermission("loans:read")).Get("/overdue", cfg.Loans.Overdue)     // HU-08, also polled by lms-workflow
+				loans.With(requirePermission("loans:write")).Post("/{id}/return", cfg.Loans.Return) // HU-07 / HU-08 suspension trigger
 			})
 		})
 	})

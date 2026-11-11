@@ -43,6 +43,13 @@ type Config struct {
 	// Circulation has no DB access to either table.
 	MembershipServiceURL string
 	CatalogServiceURL    string
+
+	// IAMServiceURL is where every protected route checks its required
+	// permission (ADR-012-iam-service-scope.md). Empty by default — a
+	// rollout decision, not an oversight: an unset URL disables the
+	// authorization check entirely (router.go), so adopting lms-iam never
+	// requires touching this service's required configuration first.
+	IAMServiceURL string
 }
 
 func Load() (*Config, error) {
@@ -78,6 +85,8 @@ func Load() (*Config, error) {
 
 		MembershipServiceURL: getEnv("MEMBERSHIP_SERVICE_URL", "http://membership-service:8080"),
 		CatalogServiceURL:    getEnv("CATALOG_SERVICE_URL", "http://catalog-service:8080"),
+
+		IAMServiceURL: getEnv("IAM_SERVICE_URL", ""),
 	}
 
 	if cfg.InternalJWTSecret == "" {
