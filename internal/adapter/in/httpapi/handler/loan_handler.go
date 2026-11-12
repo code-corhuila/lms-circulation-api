@@ -30,10 +30,29 @@ type LoanHandler struct {
 	returnLoan   in.ReturnLoanUseCase
 	searchLoans  in.SearchLoansUseCase
 	overdueLoans in.OverdueLoansUseCase
+	markLate     in.MarkLateUseCase
+	notifyLoan   in.NotifyLoanUseCase
+	accrueFines  in.AccrueFinesUseCase
 }
 
-func NewLoanHandler(registerLoan in.RegisterLoanUseCase, returnLoan in.ReturnLoanUseCase, searchLoans in.SearchLoansUseCase, overdueLoans in.OverdueLoansUseCase) *LoanHandler {
-	return &LoanHandler{registerLoan: registerLoan, returnLoan: returnLoan, searchLoans: searchLoans, overdueLoans: overdueLoans}
+func NewLoanHandler(
+	registerLoan in.RegisterLoanUseCase,
+	returnLoan in.ReturnLoanUseCase,
+	searchLoans in.SearchLoansUseCase,
+	overdueLoans in.OverdueLoansUseCase,
+	markLate in.MarkLateUseCase,
+	notifyLoan in.NotifyLoanUseCase,
+	accrueFines in.AccrueFinesUseCase,
+) *LoanHandler {
+	return &LoanHandler{
+		registerLoan: registerLoan,
+		returnLoan:   returnLoan,
+		searchLoans:  searchLoans,
+		overdueLoans: overdueLoans,
+		markLate:     markLate,
+		notifyLoan:   notifyLoan,
+		accrueFines:  accrueFines,
+	}
 }
 
 type createLoanRequest struct {
@@ -42,14 +61,16 @@ type createLoanRequest struct {
 }
 
 type loanResponse struct {
-	ID         string  `json:"id"`
-	StudentID  string  `json:"studentId"`
-	BookID     string  `json:"bookId"`
-	LoanDate   string  `json:"loanDate"`
-	DueDate    string  `json:"dueDate"`
-	ReturnDate *string `json:"returnDate,omitempty"`
-	Status     string  `json:"status"`
-	WasLate    *bool   `json:"wasLate,omitempty"`
+	ID           string  `json:"id"`
+	StudentID    string  `json:"studentId"`
+	BookID       string  `json:"bookId"`
+	LoanDate     string  `json:"loanDate"`
+	DueDate      string  `json:"dueDate"`
+	ReturnDate   *string `json:"returnDate,omitempty"`
+	Status       string  `json:"status"`
+	WasLate      *bool   `json:"wasLate,omitempty"`
+	LateMarkedAt *string `json:"lateMarkedAt,omitempty"`
+	NotifiedAt   *string `json:"notifiedAt,omitempty"`
 }
 
 func toLoanResponse(l *circulation.Loan) loanResponse {
@@ -65,6 +86,14 @@ func toLoanResponse(l *circulation.Loan) loanResponse {
 	if l.ReturnDate != nil {
 		v := l.ReturnDate.Format(loanTimeFormat)
 		resp.ReturnDate = &v
+	}
+	if l.LateMarkedAt != nil {
+		v := l.LateMarkedAt.Format(loanTimeFormat)
+		resp.LateMarkedAt = &v
+	}
+	if l.NotifiedAt != nil {
+		v := l.NotifiedAt.Format(loanTimeFormat)
+		resp.NotifiedAt = &v
 	}
 	return resp
 }
@@ -203,6 +232,62 @@ func (h *LoanHandler) List(w http.ResponseWriter, r *http.Request) {
 		"data": items,
 		"meta": paginatedMeta(total, page, limit),
 	})
+}
+
+// MarkLate — POST /loans/{id}/mark-late (ADR-008 step A). Internal-only:
+// reachable only by lms-workflow, enforced by RequireCaller (ADR-013), not
+// by this handler.
+func (h *LoanHandler) MarkLate(w http.ResponseWriter, r *http.Request) {
+	traceID := middleware.FromContext(r.Context())
+	id := chi.URLParam(r, "id")
+
+	loan, err := h.markLate.Execute(r.Context(), id)
+	switch {
+	case errors.Is(err, circulation.ErrLoanNotFound):
+		response.Error(w, http.StatusNotFound, "NOT_FOUND", "Loan not found", traceID)
+		return
+	case errors.Is(err, circulation.ErrLoanNotActive):
+		response.Error(w, http.StatusConflict, "LOAN_NOT_ACTIVE", "This loan is not active", traceID)
+		return
+	case err != nil:
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", traceID)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, toLoanResponse(loan))
+}
+
+// Notify — POST /loans/{id}/notify (ADR-009). Internal-only: reachable only
+// by lms-worker, enforced by RequireCaller (ADR-013).
+func (h *LoanHandler) Notify(w http.ResponseWriter, r *http.Request) {
+	traceID := middleware.FromContext(r.Context())
+	id := chi.URLParam(r, "id")
+
+	loan, err := h.notifyLoan.Execute(r.Context(), id)
+	switch {
+	case errors.Is(err, circulation.ErrLoanNotFound):
+		response.Error(w, http.StatusNotFound, "NOT_FOUND", "Loan not found", traceID)
+		return
+	case err != nil:
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", traceID)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, toLoanResponse(loan))
+}
+
+// AccrueFines — POST /loans/accrue-fines (ADR-009). Internal-only:
+// reachable only by lms-worker, enforced by RequireCaller (ADR-013). See
+// usecase.AccrueFines — deliberately a stub, no fine domain model exists yet.
+func (h *LoanHandler) AccrueFines(w http.ResponseWriter, r *http.Request) {
+	traceID := middleware.FromContext(r.Context())
+
+	if err := h.accrueFines.Execute(r.Context()); err != nil {
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", traceID)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
 // Overdue — GET /loans/overdue (HU-08, FR-020, Scenario 2). meta carries the

@@ -34,45 +34,51 @@ func NewLoanRepository(db *mongo.Database) *LoanRepository {
 // loanDocument is the on-disk shape — kept separate from circulation.Loan so the
 // domain aggregate carries no persistence-framework tags.
 type loanDocument struct {
-	ID         string     `bson:"_id"`
-	StudentID  string     `bson:"student_id"`
-	BookID     string     `bson:"book_id"`
-	LoanDate   time.Time  `bson:"loan_date"`
-	DueDate    time.Time  `bson:"due_date"`
-	ReturnDate *time.Time `bson:"return_date,omitempty"`
-	Status     string     `bson:"status"`
-	WasLate    *bool      `bson:"was_late,omitempty"`
-	CreatedAt  time.Time  `bson:"created_at"`
-	UpdatedAt  time.Time  `bson:"updated_at"`
+	ID           string     `bson:"_id"`
+	StudentID    string     `bson:"student_id"`
+	BookID       string     `bson:"book_id"`
+	LoanDate     time.Time  `bson:"loan_date"`
+	DueDate      time.Time  `bson:"due_date"`
+	ReturnDate   *time.Time `bson:"return_date,omitempty"`
+	Status       string     `bson:"status"`
+	WasLate      *bool      `bson:"was_late,omitempty"`
+	LateMarkedAt *time.Time `bson:"late_marked_at,omitempty"`
+	NotifiedAt   *time.Time `bson:"notified_at,omitempty"`
+	CreatedAt    time.Time  `bson:"created_at"`
+	UpdatedAt    time.Time  `bson:"updated_at"`
 }
 
 func toDocument(l *circulation.Loan) loanDocument {
 	return loanDocument{
-		ID:         l.ID,
-		StudentID:  l.StudentID,
-		BookID:     l.BookID,
-		LoanDate:   l.LoanDate,
-		DueDate:    l.DueDate,
-		ReturnDate: l.ReturnDate,
-		Status:     l.Status,
-		WasLate:    l.WasLate,
-		CreatedAt:  l.CreatedAt,
-		UpdatedAt:  l.UpdatedAt,
+		ID:           l.ID,
+		StudentID:    l.StudentID,
+		BookID:       l.BookID,
+		LoanDate:     l.LoanDate,
+		DueDate:      l.DueDate,
+		ReturnDate:   l.ReturnDate,
+		Status:       l.Status,
+		WasLate:      l.WasLate,
+		LateMarkedAt: l.LateMarkedAt,
+		NotifiedAt:   l.NotifiedAt,
+		CreatedAt:    l.CreatedAt,
+		UpdatedAt:    l.UpdatedAt,
 	}
 }
 
 func (d loanDocument) toDomain() *circulation.Loan {
 	return &circulation.Loan{
-		ID:         d.ID,
-		StudentID:  d.StudentID,
-		BookID:     d.BookID,
-		LoanDate:   d.LoanDate,
-		DueDate:    d.DueDate,
-		ReturnDate: d.ReturnDate,
-		Status:     d.Status,
-		WasLate:    d.WasLate,
-		CreatedAt:  d.CreatedAt,
-		UpdatedAt:  d.UpdatedAt,
+		ID:           d.ID,
+		StudentID:    d.StudentID,
+		BookID:       d.BookID,
+		LoanDate:     d.LoanDate,
+		DueDate:      d.DueDate,
+		ReturnDate:   d.ReturnDate,
+		Status:       d.Status,
+		WasLate:      d.WasLate,
+		LateMarkedAt: d.LateMarkedAt,
+		NotifiedAt:   d.NotifiedAt,
+		CreatedAt:    d.CreatedAt,
+		UpdatedAt:    d.UpdatedAt,
 	}
 }
 
