@@ -32,6 +32,7 @@ type LoanHandler struct {
 	overdueLoans in.OverdueLoansUseCase
 	markLate     in.MarkLateUseCase
 	notifyLoan   in.NotifyLoanUseCase
+	accrueFines  in.AccrueFinesUseCase
 }
 
 func NewLoanHandler(
@@ -41,6 +42,7 @@ func NewLoanHandler(
 	overdueLoans in.OverdueLoansUseCase,
 	markLate in.MarkLateUseCase,
 	notifyLoan in.NotifyLoanUseCase,
+	accrueFines in.AccrueFinesUseCase,
 ) *LoanHandler {
 	return &LoanHandler{
 		registerLoan: registerLoan,
@@ -49,6 +51,7 @@ func NewLoanHandler(
 		overdueLoans: overdueLoans,
 		markLate:     markLate,
 		notifyLoan:   notifyLoan,
+		accrueFines:  accrueFines,
 	}
 }
 
@@ -271,6 +274,20 @@ func (h *LoanHandler) Notify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, toLoanResponse(loan))
+}
+
+// AccrueFines — POST /loans/accrue-fines (ADR-009). Internal-only:
+// reachable only by lms-worker, enforced by RequireCaller (ADR-013). See
+// usecase.AccrueFines — deliberately a stub, no fine domain model exists yet.
+func (h *LoanHandler) AccrueFines(w http.ResponseWriter, r *http.Request) {
+	traceID := middleware.FromContext(r.Context())
+
+	if err := h.accrueFines.Execute(r.Context()); err != nil {
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", traceID)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
 // Overdue — GET /loans/overdue (HU-08, FR-020, Scenario 2). meta carries the

@@ -47,3 +47,11 @@ type MarkLateUseCase interface {
 type NotifyLoanUseCase interface {
 	Execute(ctx context.Context, loanID string) (*circulation.Loan, error)
 }
+
+// AccrueFinesUseCase is ADR-009's second responsibility. No fine/monetary
+// penalty domain rule exists yet in this project
+// (02-domain/entities-and-rules.md has none), so this is a deliberate stub
+// — see usecase.AccrueFines. Internal-only (ADR-013).
+type AccrueFinesUseCase interface {
+	Execute(ctx context.Context) error
+}

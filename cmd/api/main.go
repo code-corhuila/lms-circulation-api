@@ -71,6 +71,7 @@ func run() error {
 	overdueLoansUseCase := usecase.NewOverdueLoans(loanRepo)
 	markLateUseCase := usecase.NewMarkLate(loanRepo)
 	notifyLoanUseCase := usecase.NewNotifyLoan(loanRepo)
+	accrueFinesUseCase := usecase.NewAccrueFines(log)
 	loanHandler := handler.NewLoanHandler(
 		registerLoanUseCase,
 		returnLoanUseCase,
@@ -78,6 +79,7 @@ func run() error {
 		overdueLoansUseCase,
 		markLateUseCase,
 		notifyLoanUseCase,
+		accrueFinesUseCase,
 	)
 
 	router := httpserver.NewRouter(httpserver.RouterConfig{

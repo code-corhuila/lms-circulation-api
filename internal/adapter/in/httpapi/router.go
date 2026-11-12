@@ -51,6 +51,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 					Post("/{id}/mark-late", cfg.Loans.MarkLate) // ADR-008 step A
 				loans.With(middleware.RequireCaller("lms-worker")).
 					Post("/{id}/notify", cfg.Loans.Notify) // ADR-009
+				loans.With(middleware.RequireCaller("lms-worker")).
+					Post("/accrue-fines", cfg.Loans.AccrueFines) // ADR-009
 			})
 		})
 	})
