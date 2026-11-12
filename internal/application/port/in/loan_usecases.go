@@ -33,3 +33,10 @@ type SearchLoansUseCase interface {
 type OverdueLoansUseCase interface {
 	Execute(ctx context.Context, page, limit int) (loans []*circulation.Loan, total int, err error)
 }
+
+// MarkLateUseCase implements ADR-008's step A: flag a loan as late once its
+// due date has passed, called by lms-workflow's saga before it suspends the
+// student in step B (lms-membership-api). Internal-only (ADR-013).
+type MarkLateUseCase interface {
+	Execute(ctx context.Context, loanID string) (*circulation.Loan, error)
+}

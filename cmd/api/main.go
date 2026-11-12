@@ -69,7 +69,14 @@ func run() error {
 	returnLoanUseCase := usecase.NewReturnLoan(loanRegistrationService)
 	searchLoansUseCase := usecase.NewSearchLoans(loanRepo)
 	overdueLoansUseCase := usecase.NewOverdueLoans(loanRepo)
-	loanHandler := handler.NewLoanHandler(registerLoanUseCase, returnLoanUseCase, searchLoansUseCase, overdueLoansUseCase)
+	markLateUseCase := usecase.NewMarkLate(loanRepo)
+	loanHandler := handler.NewLoanHandler(
+		registerLoanUseCase,
+		returnLoanUseCase,
+		searchLoansUseCase,
+		overdueLoansUseCase,
+		markLateUseCase,
+	)
 
 	router := httpserver.NewRouter(httpserver.RouterConfig{
 		DB:                mongoClient,
