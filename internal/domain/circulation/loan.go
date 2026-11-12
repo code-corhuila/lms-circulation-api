@@ -53,6 +53,7 @@ type Loan struct {
 	Status       string
 	WasLate      *bool
 	LateMarkedAt *time.Time
+	NotifiedAt   *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -111,4 +112,13 @@ func (l *Loan) MarkLate(now time.Time) error {
 	l.LateMarkedAt = &now
 	l.UpdatedAt = now
 	return nil
+}
+
+// MarkNotified records that lms-worker sent (ADR-009's first
+// responsibility) a due-date notice for this loan. Always overwrites with
+// the latest timestamp — there is no real notification channel to
+// deduplicate against, only this record of "we said we told them".
+func (l *Loan) MarkNotified(now time.Time) {
+	l.NotifiedAt = &now
+	l.UpdatedAt = now
 }

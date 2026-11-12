@@ -107,3 +107,13 @@ func TestMarkLate_RejectsAReturnedLoan(t *testing.T) {
 		t.Fatalf("expected ErrLoanNotActive, got %v", err)
 	}
 }
+
+func TestMarkNotified_SetsNotifiedAt(t *testing.T) {
+	loan := circulation.NewLoan("student-1", "book-1")
+	now := time.Now().UTC()
+
+	loan.MarkNotified(now)
+	if loan.NotifiedAt == nil || !loan.NotifiedAt.Equal(now) {
+		t.Fatalf("expected NotifiedAt=%v, got %v", now, loan.NotifiedAt)
+	}
+}

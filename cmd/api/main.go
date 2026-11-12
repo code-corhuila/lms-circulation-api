@@ -70,12 +70,14 @@ func run() error {
 	searchLoansUseCase := usecase.NewSearchLoans(loanRepo)
 	overdueLoansUseCase := usecase.NewOverdueLoans(loanRepo)
 	markLateUseCase := usecase.NewMarkLate(loanRepo)
+	notifyLoanUseCase := usecase.NewNotifyLoan(loanRepo)
 	loanHandler := handler.NewLoanHandler(
 		registerLoanUseCase,
 		returnLoanUseCase,
 		searchLoansUseCase,
 		overdueLoansUseCase,
 		markLateUseCase,
+		notifyLoanUseCase,
 	)
 
 	router := httpserver.NewRouter(httpserver.RouterConfig{

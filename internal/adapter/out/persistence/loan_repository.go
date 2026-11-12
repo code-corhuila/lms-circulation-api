@@ -43,6 +43,7 @@ type loanDocument struct {
 	Status       string     `bson:"status"`
 	WasLate      *bool      `bson:"was_late,omitempty"`
 	LateMarkedAt *time.Time `bson:"late_marked_at,omitempty"`
+	NotifiedAt   *time.Time `bson:"notified_at,omitempty"`
 	CreatedAt    time.Time  `bson:"created_at"`
 	UpdatedAt    time.Time  `bson:"updated_at"`
 }
@@ -58,6 +59,7 @@ func toDocument(l *circulation.Loan) loanDocument {
 		Status:       l.Status,
 		WasLate:      l.WasLate,
 		LateMarkedAt: l.LateMarkedAt,
+		NotifiedAt:   l.NotifiedAt,
 		CreatedAt:    l.CreatedAt,
 		UpdatedAt:    l.UpdatedAt,
 	}
@@ -74,6 +76,7 @@ func (d loanDocument) toDomain() *circulation.Loan {
 		Status:       d.Status,
 		WasLate:      d.WasLate,
 		LateMarkedAt: d.LateMarkedAt,
+		NotifiedAt:   d.NotifiedAt,
 		CreatedAt:    d.CreatedAt,
 		UpdatedAt:    d.UpdatedAt,
 	}

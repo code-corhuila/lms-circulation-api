@@ -40,3 +40,10 @@ type OverdueLoansUseCase interface {
 type MarkLateUseCase interface {
 	Execute(ctx context.Context, loanID string) (*circulation.Loan, error)
 }
+
+// NotifyLoanUseCase records that a due-date notice was sent for a loan,
+// called by lms-worker (ADR-009's first responsibility). Internal-only
+// (ADR-013).
+type NotifyLoanUseCase interface {
+	Execute(ctx context.Context, loanID string) (*circulation.Loan, error)
+}

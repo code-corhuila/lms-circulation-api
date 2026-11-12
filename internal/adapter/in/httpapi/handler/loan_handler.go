@@ -31,6 +31,7 @@ type LoanHandler struct {
 	searchLoans  in.SearchLoansUseCase
 	overdueLoans in.OverdueLoansUseCase
 	markLate     in.MarkLateUseCase
+	notifyLoan   in.NotifyLoanUseCase
 }
 
 func NewLoanHandler(
@@ -39,6 +40,7 @@ func NewLoanHandler(
 	searchLoans in.SearchLoansUseCase,
 	overdueLoans in.OverdueLoansUseCase,
 	markLate in.MarkLateUseCase,
+	notifyLoan in.NotifyLoanUseCase,
 ) *LoanHandler {
 	return &LoanHandler{
 		registerLoan: registerLoan,
@@ -46,6 +48,7 @@ func NewLoanHandler(
 		searchLoans:  searchLoans,
 		overdueLoans: overdueLoans,
 		markLate:     markLate,
+		notifyLoan:   notifyLoan,
 	}
 }
 
@@ -64,6 +67,7 @@ type loanResponse struct {
 	Status       string  `json:"status"`
 	WasLate      *bool   `json:"wasLate,omitempty"`
 	LateMarkedAt *string `json:"lateMarkedAt,omitempty"`
+	NotifiedAt   *string `json:"notifiedAt,omitempty"`
 }
 
 func toLoanResponse(l *circulation.Loan) loanResponse {
@@ -83,6 +87,10 @@ func toLoanResponse(l *circulation.Loan) loanResponse {
 	if l.LateMarkedAt != nil {
 		v := l.LateMarkedAt.Format(loanTimeFormat)
 		resp.LateMarkedAt = &v
+	}
+	if l.NotifiedAt != nil {
+		v := l.NotifiedAt.Format(loanTimeFormat)
+		resp.NotifiedAt = &v
 	}
 	return resp
 }
@@ -237,6 +245,25 @@ func (h *LoanHandler) MarkLate(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, circulation.ErrLoanNotActive):
 		response.Error(w, http.StatusConflict, "LOAN_NOT_ACTIVE", "This loan is not active", traceID)
+		return
+	case err != nil:
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", traceID)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, toLoanResponse(loan))
+}
+
+// Notify — POST /loans/{id}/notify (ADR-009). Internal-only: reachable only
+// by lms-worker, enforced by RequireCaller (ADR-013).
+func (h *LoanHandler) Notify(w http.ResponseWriter, r *http.Request) {
+	traceID := middleware.FromContext(r.Context())
+	id := chi.URLParam(r, "id")
+
+	loan, err := h.notifyLoan.Execute(r.Context(), id)
+	switch {
+	case errors.Is(err, circulation.ErrLoanNotFound):
+		response.Error(w, http.StatusNotFound, "NOT_FOUND", "Loan not found", traceID)
 		return
 	case err != nil:
 		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", traceID)
