@@ -43,6 +43,16 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				loans.Get("/", cfg.Loans.List)               // HU-07
 				loans.Get("/overdue", cfg.Loans.Overdue)     // HU-08
 				loans.Post("/{id}/return", cfg.Loans.Return) // HU-07 / HU-08 suspension trigger
+
+				// Internal-only, ADR-013 RequireCaller allow-list — never
+				// reachable by a real Administrator session, only by the
+				// one sibling service each route names.
+				loans.With(middleware.RequireCaller("lms-workflow")).
+					Post("/{id}/mark-late", cfg.Loans.MarkLate) // ADR-008 step A
+				loans.With(middleware.RequireCaller("lms-worker")).
+					Post("/{id}/notify", cfg.Loans.Notify) // ADR-009
+				loans.With(middleware.RequireCaller("lms-worker")).
+					Post("/accrue-fines", cfg.Loans.AccrueFines) // ADR-009
 			})
 		})
 	})

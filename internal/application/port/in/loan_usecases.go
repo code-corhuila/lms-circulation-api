@@ -33,3 +33,25 @@ type SearchLoansUseCase interface {
 type OverdueLoansUseCase interface {
 	Execute(ctx context.Context, page, limit int) (loans []*circulation.Loan, total int, err error)
 }
+
+// MarkLateUseCase implements ADR-008's step A: flag a loan as late once its
+// due date has passed, called by lms-workflow's saga before it suspends the
+// student in step B (lms-membership-api). Internal-only (ADR-013).
+type MarkLateUseCase interface {
+	Execute(ctx context.Context, loanID string) (*circulation.Loan, error)
+}
+
+// NotifyLoanUseCase records that a due-date notice was sent for a loan,
+// called by lms-worker (ADR-009's first responsibility). Internal-only
+// (ADR-013).
+type NotifyLoanUseCase interface {
+	Execute(ctx context.Context, loanID string) (*circulation.Loan, error)
+}
+
+// AccrueFinesUseCase is ADR-009's second responsibility. No fine/monetary
+// penalty domain rule exists yet in this project
+// (02-domain/entities-and-rules.md has none), so this is a deliberate stub
+// — see usecase.AccrueFines. Internal-only (ADR-013).
+type AccrueFinesUseCase interface {
+	Execute(ctx context.Context) error
+}

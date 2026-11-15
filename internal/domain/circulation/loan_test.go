@@ -67,3 +67,53 @@ func TestIsOverdue(t *testing.T) {
 		t.Fatal("expected loan to be overdue")
 	}
 }
+
+func TestMarkLate_KeepsTheLoanActive(t *testing.T) {
+	// A late-marked loan is still out — MarkLate is a fact recorded
+	// alongside Status, never a replacement for it.
+	loan := circulation.NewLoan("student-1", "book-1")
+
+	if err := loan.MarkLate(time.Now().UTC()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if loan.Status != circulation.StatusActive {
+		t.Fatalf("expected status to stay ACTIVE, got %s", loan.Status)
+	}
+	if loan.LateMarkedAt == nil {
+		t.Fatal("expected LateMarkedAt to be set")
+	}
+}
+
+func TestMarkLate_IsIdempotent(t *testing.T) {
+	loan := circulation.NewLoan("student-1", "book-1")
+	first := time.Now().UTC()
+	if err := loan.MarkLate(first); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := loan.MarkLate(first.Add(time.Hour)); err != nil {
+		t.Fatalf("unexpected error on second call: %v", err)
+	}
+	if !loan.LateMarkedAt.Equal(first) {
+		t.Fatalf("expected LateMarkedAt to stay %v, got %v", first, *loan.LateMarkedAt)
+	}
+}
+
+func TestMarkLate_RejectsAReturnedLoan(t *testing.T) {
+	loan := circulation.NewLoan("student-1", "book-1")
+	_, _ = loan.RegisterReturn(time.Now().UTC())
+
+	if err := loan.MarkLate(time.Now().UTC()); err != circulation.ErrLoanNotActive {
+		t.Fatalf("expected ErrLoanNotActive, got %v", err)
+	}
+}
+
+func TestMarkNotified_SetsNotifiedAt(t *testing.T) {
+	loan := circulation.NewLoan("student-1", "book-1")
+	now := time.Now().UTC()
+
+	loan.MarkNotified(now)
+	if loan.NotifiedAt == nil || !loan.NotifiedAt.Equal(now) {
+		t.Fatalf("expected NotifiedAt=%v, got %v", now, loan.NotifiedAt)
+	}
+}

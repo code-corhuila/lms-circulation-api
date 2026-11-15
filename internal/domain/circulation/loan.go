@@ -23,7 +23,10 @@ const (
 	MaxActiveLoans = 2
 )
 
-// Status values for Loan.Status.
+// Status values for Loan.Status. Being flagged late (LateMarkedAt) is
+// deliberately not a third status here — the book is still out and the
+// loan is still ACTIVE until it's actually returned; "late" is a fact
+// recorded alongside that, not a replacement for it (see MarkLate below).
 const (
 	StatusActive   = "ACTIVE"
 	StatusReturned = "RETURNED"
@@ -35,18 +38,24 @@ var ErrLoanAlreadyReturned = errors.New("loan already returned")
 // ErrLoanNotFound is the port-level "not found" error.
 var ErrLoanNotFound = errors.New("loan not found")
 
+// ErrLoanNotActive — MarkLate only makes sense for a loan that's still out;
+// a returned loan has nothing left to flag.
+var ErrLoanNotActive = errors.New("loan is not active")
+
 // Loan is the Circulation bounded context's Aggregate Root.
 type Loan struct {
-	ID         string
-	StudentID  string
-	BookID     string
-	LoanDate   time.Time
-	DueDate    time.Time
-	ReturnDate *time.Time
-	Status     string
-	WasLate    *bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID           string
+	StudentID    string
+	BookID       string
+	LoanDate     time.Time
+	DueDate      time.Time
+	ReturnDate   *time.Time
+	Status       string
+	WasLate      *bool
+	LateMarkedAt *time.Time
+	NotifiedAt   *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // NewLoan creates a loan starting now, with dueDate fixed at LoanPeriodDays later —
@@ -86,4 +95,30 @@ func (l *Loan) RegisterReturn(returnDate time.Time) (wasLate bool, err error) {
 	l.WasLate = &wasLate
 	l.UpdatedAt = time.Now().UTC()
 	return wasLate, nil
+}
+
+// MarkLate records that lms-workflow's saga (ADR-008, step A) has flagged
+// this loan as late, ahead of suspending the student in step B. Idempotent:
+// calling it again once LateMarkedAt is already set is a no-op success, so
+// the saga's own retry-after-failure path (resuming at step B) never needs
+// to special-case a repeat call here.
+func (l *Loan) MarkLate(now time.Time) error {
+	if l.Status != StatusActive {
+		return ErrLoanNotActive
+	}
+	if l.LateMarkedAt != nil {
+		return nil
+	}
+	l.LateMarkedAt = &now
+	l.UpdatedAt = now
+	return nil
+}
+
+// MarkNotified records that lms-worker sent (ADR-009's first
+// responsibility) a due-date notice for this loan. Always overwrites with
+// the latest timestamp — there is no real notification channel to
+// deduplicate against, only this record of "we said we told them".
+func (l *Loan) MarkNotified(now time.Time) {
+	l.NotifiedAt = &now
+	l.UpdatedAt = now
 }
